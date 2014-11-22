@@ -77,8 +77,8 @@ module.exports = {
         // session.emit("revoked");
       });
 
-      tunnel.on("close", function() {
-        session.emit("close");
+      tunnel.on("close", function(hadError) {
+        session.emit("close", hadError);
       });
 
       tunnel.on("error", function() {
@@ -105,7 +105,7 @@ module.exports = {
     return session;
   },
 
-  close: function(session) {
+  close: function(session, callback) {
     var client = new Client({
       url: config.api.url,
       path: config.api.path
@@ -126,6 +126,9 @@ module.exports = {
       session._tunnel.close(function(err) {
         if (err) {
           console.log(err);
+        }
+        if (callback) {
+          callback();
         }
       });
     });
