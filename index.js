@@ -14,7 +14,7 @@ var Loader = require("./lib/loader");
 // to load and save user's preferences
 var UserPrefs = require("./lib/preferences");
 // for handling any forwarding errors
-var ErrorHandler = require("./lib/handlers/error");
+var ErrorHandler = require("./lib/service/handlers/error");
 
 module.exports = {
   forward: function(options, callback) {
@@ -60,7 +60,7 @@ module.exports = {
       }
 
       var errorHandler = new ErrorHandler({
-        assets: __dirname + "/assets"
+        assets: __dirname + "/assets/templates/errors"
       });
 
       tunnel.on("connect", function() {
