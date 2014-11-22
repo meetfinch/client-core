@@ -44,7 +44,7 @@ module.exports = {
 
       var tunnel = new Tunnel(response.connection);
 
-      session._connection = response.connection;
+      session.connection = response.connection;
       session._tunnel = tunnel;
       session._key = options.key;
       session.forwards = [];
@@ -112,7 +112,7 @@ module.exports = {
     });
 
     var params = {
-      id: session._connection.id,
+      id: session.connection.id,
       reason: "disconnect",
       key: session._key
     };
