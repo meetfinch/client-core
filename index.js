@@ -45,15 +45,16 @@ module.exports = {
       session._connection = response.connection;
       session._tunnel = tunnel;
       session._key = options.key;
-      session._forwards = response.connection.forwards;
       session.forwards = [];
 
-      for (var i = 0, j = session._forwards.length; i < j; i++) {
-        var forward = session._forwards[i];
-        var friendly = {
-          url: config.server.protocol + "://" + forward.subdomain + "." + response.connection.domain + config.server.suffix
+      var forwards = response.connection.forwards;
+
+      for (var i = 0, j = forwards.length; i < j; i++) {
+        var f = forwards[i];
+        var forward = {
+          url: config.server.protocol + "://" + f.subdomain + "." + response.connection.domain + config.server.suffix
         };
-        session.forwards.push(friendly);
+        session.forwards.push(forward);
       }
 
       tunnel.on("connect", function() {
@@ -66,15 +67,27 @@ module.exports = {
 
       tunnel.on("ping", function() {
         // @TODO handle internally
+        // if the result of the ping was a revocation, then...
+        // session.emit("revoked");
       });
 
       tunnel.on("close", function() {
         session.emit("close");
       });
 
+      tunnel.on("error", function() {
+        session.emit("error");
+      });
+
       tunnel.on("data", function() {
         session.emit("data");
       });
+
+      tunnel.on("idle", function() {
+        session.emit("idle");
+      });
+
+      session.emit("start");
 
       tunnel.connect();
     });
