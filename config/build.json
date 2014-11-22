@@ -1,0 +1,12 @@
+{
+    "api": {
+        "url": "http://192.168.1.100:8886",
+        "path": ""
+    },
+    "server": {
+        "url": "http://build.seethrough.it",
+        "protocol": "http",
+        "suffix": ":8887"
+    },
+    "idle_timeout": 3600000
+}

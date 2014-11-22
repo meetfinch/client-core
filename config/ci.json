@@ -1,0 +1,12 @@
+{
+    "api": {
+        "url": "http://localhost:11109",
+        "path": ""
+    },
+    "server": {
+        "url": "http://localhost",
+        "protocol": "http",
+        "suffix": ""
+    },
+    "idle_timeout": 3600000
+}

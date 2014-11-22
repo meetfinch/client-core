@@ -1,0 +1,41 @@
+{
+  "name": "finch",
+  "version": "1.1.0",
+  "description": "The https://meetfinch.com client API",
+  "main": "index.js",
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "dependencies": {
+    "asn1": "0.2.1",
+    "colors": "0.6.2",
+    "mime": "1.2.11",
+    "minimist": "0.0.10",
+    "mute-stream": "0.0.4",
+    "node-static": "0.7.3",
+    "optimist": "0.6.1",
+    "read": "1.0.5",
+    "ssh2": "makeusabrew/ssh2",
+    "streamsearch": "0.1.2",
+    "wordwrap": "0.0.2"
+  },
+  "devDependencies": {
+    "chai": "^1.9.1",
+    "sinon": "^1.9.1",
+    "sinon-chai": "^2.5.0"
+  },
+  "bundledDependencies": [
+    "asn1",
+    "colors",
+    "mime",
+    "minimist",
+    "mute-stream",
+    "node-static",
+    "optimist",
+    "read",
+    "readable-stream",
+    "ssh2",
+    "streamsearch",
+    "wordwrap"
+  ]
+}

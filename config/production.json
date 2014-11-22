@@ -1,0 +1,12 @@
+{
+    "api": {
+        "url": "https://meetfinch.com",
+        "path": "/api"
+    },
+    "server": {
+        "url": "https://meetfinch.com",
+        "protocol": "https",
+        "suffix": ""
+    },
+    "idle_timeout": 3600000
+}

@@ -1,0 +1,11 @@
+{
+    "api": {
+        "url": "https://canaryhq.io",
+        "path": "/api"
+    },
+    "server": {
+        "url": "https://canaryhq.io",
+        "protocol": "http"
+    },
+    "idle_timeout": 3600000
+}
