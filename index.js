@@ -60,7 +60,7 @@ module.exports = {
       }
 
       var errorHandler = new ErrorHandler({
-        assets: "" // @TODO how to inject asset path on a per-app basis?
+        assets: __dirname + "/assets"
       });
 
       tunnel.on("connect", function() {
