@@ -13,6 +13,8 @@ var version = require(__dirname + "/package.json").version;
 var Loader = require("./lib/loader");
 // to load and save user's preferences
 var UserPrefs = require("./lib/preferences");
+// for handling any forwarding errors
+var ErrorHandler = require("./lib/handlers/error");
 
 module.exports = {
   forward: function(options, callback) {
@@ -57,6 +59,10 @@ module.exports = {
         session.forwards.push(forward);
       }
 
+      var errorHandler = new ErrorHandler({
+        assets: "" // @TODO how to inject asset path on a per-app basis?
+      });
+
       tunnel.on("connect", function() {
         session.emit("connect");
       });
@@ -85,6 +91,10 @@ module.exports = {
 
       tunnel.on("idle", function() {
         session.emit("idle");
+      });
+
+      tunnel.on("local:error", function(err, data) {
+        errorHandler.dispatch(err, data.local, data.remote);
       });
 
       session.emit("start");
