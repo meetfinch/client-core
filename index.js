@@ -145,6 +145,8 @@ module.exports = {
 
     preferences.load(function(err) {
       if (err) {
+        // @TODO handle
+        console.log("ERROR", err.message);
         return callback(err);
       }
 
