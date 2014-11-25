@@ -168,5 +168,24 @@ module.exports = {
 
       return callback(null, response.token);
     });
+  },
+
+  details: function(token, callback) {
+    var client = new Client({
+      url: config.api.url,
+      path: config.api.path
+    });
+
+    var params = {
+      key: token
+    };
+    client.get("/details", params, function(err, response) {
+      if (err) {
+        console.log("ERROR", err);
+        return callback(err);
+      }
+
+      return callback(null, response);
+    });
   }
 };
