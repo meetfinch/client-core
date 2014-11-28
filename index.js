@@ -16,12 +16,16 @@ var UserPrefs = require("./lib/preferences");
 // for handling any forwarding errors
 var ErrorHandler = require("./lib/service/handlers/error");
 
+function getClient() {
+  return new Client({
+    url: config.api.url,
+    path: config.api.path
+  });
+}
+
 module.exports = {
   forward: function(options, callback) {
-    var client = new Client({
-      url: config.api.url,
-      path: config.api.path
-    });
+    var client = getClient();
 
     var params = {
       // @TODO clientId: xxx,
@@ -106,10 +110,7 @@ module.exports = {
   },
 
   close: function(session, callback) {
-    var client = new Client({
-      url: config.api.url,
-      path: config.api.path
-    });
+    var client = getClient();
 
     var params = {
       id: session.connection.id,
@@ -155,10 +156,7 @@ module.exports = {
   },
 
   auth: function(params, callback) {
-    var client = new Client({
-      url: config.api.url,
-      path: config.api.path
-    });
+    var client = getClient();
 
     client.post("/auth", params, function(err, response) {
       if (err) {
@@ -166,19 +164,30 @@ module.exports = {
         return callback(err);
       }
 
-      return callback(null, response.token);
+      return callback(null, response);
+    });
+  },
+
+  register: function(params, callback) {
+    var client = getClient();
+
+    client.post("/signup", params, function(err, response) {
+      if (err) {
+        console.log("ERROR", err);
+        return callback(err);
+      }
+
+      return callback(null, response);
     });
   },
 
   details: function(token, callback) {
-    var client = new Client({
-      url: config.api.url,
-      path: config.api.path
-    });
+    var client = getClient();
 
     var params = {
       key: token
     };
+
     client.get("/details", params, function(err, response) {
       if (err) {
         console.log("ERROR", err);
