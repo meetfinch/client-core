@@ -41,9 +41,8 @@ module.exports = {
     var session = new Session();
 
     client.post("/connections", params, function(err, response) {
-      if (err) {
-        console.log("ERROR", err);
-        return;
+      if (err || response.warning) {
+        return callback(err, response);
       }
 
       var tunnel = new Tunnel(response.connection);
@@ -71,8 +70,8 @@ module.exports = {
         session.emit("connect");
       });
 
-      tunnel.on("ready", function() {
-        session.emit("ready");
+      tunnel.on("ready", function(err) {
+        session.emit("ready", err);
       });
 
       tunnel.on("ping", function() {
@@ -85,8 +84,8 @@ module.exports = {
         session.emit("close", hadError);
       });
 
-      tunnel.on("error", function() {
-        session.emit("error");
+      tunnel.on("error", function(err) {
+        session.emit("error", err);
       });
 
       tunnel.on("data", function() {
@@ -99,7 +98,14 @@ module.exports = {
 
       tunnel.on("local:error", function(err, data) {
         errorHandler.dispatch(err, data.local, data.remote);
+        session.emit("local:error", err, data);
       });
+
+      tunnel.on("remote:error", function() {
+        session.emit("remote:error");
+      });
+
+      callback(null, response);
 
       session.emit("start");
 
@@ -124,15 +130,12 @@ module.exports = {
         return;
       }
 
-      session._tunnel.close(function(err) {
-        if (err) {
-          console.log(err);
-        }
-        if (callback) {
-          callback();
-        }
-      });
+      session._tunnel.close(callback);
     });
+  },
+
+  destroy: function(session) {
+    session._tunnel.destroy();
   },
 
   load: function(path, callback) {
@@ -171,14 +174,7 @@ module.exports = {
   register: function(params, callback) {
     var client = getClient();
 
-    client.post("/signup", params, function(err, response) {
-      if (err) {
-        console.log("ERROR", err);
-        return callback(err);
-      }
-
-      return callback(null, response);
-    });
+    client.post("/signup", params, callback);
   },
 
   details: function(token, callback) {
@@ -196,5 +192,7 @@ module.exports = {
 
       return callback(null, response);
     });
-  }
+  },
+
+  config: config
 };
