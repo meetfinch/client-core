@@ -17,6 +17,8 @@ var Loader = require("./lib/loader");
 var UserPrefs = require("./lib/preferences");
 // for handling any forwarding errors
 var ErrorHandler = require("./lib/service/handlers/error");
+// any static forwards?
+var StaticManager = require("./lib/service/static/manager");
 
 var CLOSE_TIMEOUT = 5000;
 
@@ -33,7 +35,7 @@ function _close(reason) {
 
     if (session._closing) {
       debug("Ignoring close request; session is already closing");
-      return;
+      return callback();
     }
 
     client = getClient();
@@ -81,134 +83,142 @@ function _close(reason) {
 
 module.exports = {
   forward: function(options, callback) {
-    var client = getClient();
-
-    var params = {
-      // @TODO clientId: xxx,
-      version: version,
-      os_type: os.type(),
-      os_platform: os.platform(),
-      os_arch: os.arch(),
-      os_release: os.release(),
-      forwards: options.forwards,
-      key: options.key
-    };
 
     var session = new Session();
 
-    client.post("/connections", params, function(err, response) {
-      if (err || response.warning) {
-        return callback(err, response);
+    // @TODO: parse/validate options first...
+
+    StaticManager.start(options.forwards, function(err, servers, forwards) {
+      if (err) {
+        return callback(err);
       }
 
-      debug("Connection ID: " + response.connection.id);
+      var client = getClient();
 
-      var tunnel = new Tunnel(response.connection);
+      var params = {
+        // @TODO clientId: xxx,
+        version: version,
+        os_type: os.type(),
+        os_platform: os.platform(),
+        os_arch: os.arch(),
+        os_release: os.release(),
+        forwards: forwards,
+        key: options.key
+      };
 
-      if (options.timeout) {
-        tunnel.timeout = options.timeout;
-      }
-
-      session.connection = response.connection;
-      session._tunnel = tunnel;
-      session._key = options.key;
-      session.forwards = [];
-
-      var forwards = response.connection.forwards;
-
-      for (var i = 0, j = forwards.length; i < j; i++) {
-        var f = forwards[i];
-        var forward = {
-          url: config.server.protocol + "://" + f.subdomain + "." + response.connection.domain + config.server.suffix
-        };
-        session.forwards.push(forward);
-      }
-
-      var errorHandler = new ErrorHandler({
-        assets: __dirname + "/assets/templates/errors"
-      });
-
-      tunnel.on("connect", function() {
-        session.emit("connect");
-      });
-
-      tunnel.on("ready", function(err) {
-        session.emit("ready", err);
-      });
-
-      tunnel.on("ping", function(id) {
-        debug("Verifying ping request");
-
-        var client = getClient();
-        var params = {
-          pingId: id,
-          key: session._key
-        };
-
-        client.get("/connections/ping", params, function(err, response) {
-          if (err) {
-            // probably a misguided ping; silently ignore
-            return;
-          }
-
-          var type = response.type;
-
-          /**
-           * session.emit("ping", type);
-           */
-
-          switch (type) {
-            case "disconnect": // @NOTE: should be revoked, hence why we re-map here
-              session.emit("revoked");
-              session._tunnel.close();
-              break;
-
-            default:
-              debug("Unhandled ping response type: " + type);
-              break;
-          }
-        });
-      });
-
-      tunnel.on("close", function(hadError) {
-        /**
-         * @TODO did we know about this close, or do we need to
-         * handle it and initiate a DEL /connections{id} of our own?
-         */
-        if (!session._closing) {
-          "DEL";
+      client.post("/connections", params, function(err, response) {
+        if (err || response.warning) {
+          return callback(err, response);
         }
-        session.emit("close", hadError);
+
+        debug("Connection ID: " + response.connection.id);
+
+        var tunnel = new Tunnel(response.connection);
+
+        if (options.timeout) {
+          tunnel.timeout = options.timeout;
+        }
+
+        session.connection = response.connection;
+        session._tunnel    = tunnel;
+        session._key       = options.key;
+        session._servers   = servers;
+        session.forwards   = [];
+
+        var forwards = response.connection.forwards;
+
+        for (var i = 0, j = forwards.length; i < j; i++) {
+          var f = forwards[i];
+          var forward = {
+            url: config.server.protocol + "://" + f.subdomain + "." + response.connection.domain + config.server.suffix
+          };
+          session.forwards.push(forward);
+        }
+
+        var errorHandler = new ErrorHandler();
+
+        tunnel.on("connect", function() {
+          session.emit("connect");
+        });
+
+        tunnel.on("ready", function(err) {
+          session.emit("ready", err);
+        });
+
+        tunnel.on("ping", function(id) {
+          debug("Verifying ping request");
+
+          var client = getClient();
+          var params = {
+            pingId: id,
+            key: session._key
+          };
+
+          client.get("/connections/ping", params, function(err, response) {
+            if (err) {
+              // probably a misguided ping; silently ignore
+              return;
+            }
+
+            var type = response.type;
+
+            /**
+             * session.emit("ping", type);
+             */
+
+            switch (type) {
+              case "disconnect": // @NOTE: should be revoked, hence why we re-map here
+                session.emit("revoked");
+                session._tunnel.close();
+                break;
+
+              default:
+                debug("Unhandled ping response type: " + type);
+                break;
+            }
+          });
+        });
+
+        tunnel.on("close", function(hadError) {
+          /**
+           * @TODO did we know about this close, or do we need to
+           * handle it and initiate a DEL /connections{id} of our own?
+           */
+          if (!session._closing) {
+            "DEL";
+          }
+          session.emit("close", hadError);
+        });
+
+        tunnel.on("error", function(err) {
+          session.emit("error", err);
+        });
+
+        tunnel.on("data", function() {
+          session.emit("data");
+        });
+
+        tunnel.on("idle", function() {
+          session.emit("idle");
+        });
+
+        tunnel.on("local:error", function(err, data) {
+          errorHandler.dispatch(err, data.local, data.remote);
+          session.emit("local:error", err, data);
+        });
+
+        tunnel.on("remote:error", function() {
+          session.emit("remote:error");
+        });
+
+        callback(null, response);
+
+        session.emit("start");
+
+        tunnel.connect();
       });
 
-      tunnel.on("error", function(err) {
-        session.emit("error", err);
-      });
-
-      tunnel.on("data", function() {
-        session.emit("data");
-      });
-
-      tunnel.on("idle", function() {
-        session.emit("idle");
-      });
-
-      tunnel.on("local:error", function(err, data) {
-        errorHandler.dispatch(err, data.local, data.remote);
-        session.emit("local:error", err, data);
-      });
-
-      tunnel.on("remote:error", function() {
-        session.emit("remote:error");
-      });
-
-      callback(null, response);
-
-      session.emit("start");
-
-      tunnel.connect();
     });
-
     return session;
   },
 
