@@ -1,4 +1,6 @@
 var config  = require("./config");
+// handy internal debugging
+var debug   = require("./lib/debug");
 // low-level wrapper around our connection transport of choice
 var Tunnel  = require("./lib/tunnel");
 // for making API requests
@@ -16,11 +18,65 @@ var UserPrefs = require("./lib/preferences");
 // for handling any forwarding errors
 var ErrorHandler = require("./lib/service/handlers/error");
 
+var CLOSE_TIMEOUT = 5000;
+
 function getClient() {
   return new Client({
     url: config.api.url,
     path: config.api.path
   });
+}
+
+function _close(reason) {
+  return function(session, callback) {
+    var client, params;
+
+    if (session._closing) {
+      debug("Ignoring close request; session is already closing");
+      return;
+    }
+
+    client = getClient();
+
+    params = {
+      id: session.connection.id,
+      reason: reason,
+      key: session._key
+    };
+
+    session._closing = true;
+
+    /**
+     * First of all close the connection from a Finch(server) point of
+     * view; the most important thing is to make sure no more traffic
+     * passes through it from a billing perspective
+     */
+    client.del("/connections", params, function(err) {
+      if (err) {
+        return callback(err);
+      }
+
+      /**
+       * Next set up a timer to destroy the tunnel if it doesn't shutdown
+       * cleanly within a reasonable timeframe. This isn't so bad but we'd
+       * still rather not unless we have to
+       */
+      var handler = setTimeout(function() {
+        debug("tunnel close took too long; destroying");
+        session._tunnel.destroy();
+        callback();
+      }, CLOSE_TIMEOUT);
+
+      /**
+       * Finally, initiate a clean tunnel shutdown
+       */
+      session._tunnel.close(function(err) {
+        debug("tunnel closed cleanly");
+        clearTimeout(handler);
+        callback(err);
+      });
+    });
+  };
 }
 
 module.exports = {
@@ -44,6 +100,8 @@ module.exports = {
       if (err || response.warning) {
         return callback(err, response);
       }
+
+      debug("Connection ID: " + response.connection.id);
 
       var tunnel = new Tunnel(response.connection);
 
@@ -74,13 +132,48 @@ module.exports = {
         session.emit("ready", err);
       });
 
-      tunnel.on("ping", function() {
-        // @TODO handle internally
-        // if the result of the ping was a revocation, then...
-        // session.emit("revoked");
+      tunnel.on("ping", function(id) {
+        debug("Verifying ping request");
+
+        var client = getClient();
+        var params = {
+          pingId: id,
+          key: session._key
+        };
+
+        client.get("/connections/ping", params, function(err, response) {
+          if (err) {
+            // probably a misguided ping; silently ignore
+            return;
+          }
+
+          var type = response.type;
+
+          /**
+           * session.emit("ping", type);
+           */
+
+          switch (type) {
+            case "disconnect": // @NOTE: should be revoked, hence why we re-map here
+              session.emit("revoked");
+              session._tunnel.close();
+              break;
+
+            default:
+              debug("Unhandled ping response type: " + type);
+              break;
+          }
+        });
       });
 
       tunnel.on("close", function(hadError) {
+        /**
+         * @TODO did we know about this close, or do we need to
+         * handle it and initiate a DEL /connections{id} of our own?
+         */
+        if (!session._closing) {
+          "DEL";
+        }
         session.emit("close", hadError);
       });
 
@@ -115,24 +208,9 @@ module.exports = {
     return session;
   },
 
-  close: function(session, callback) {
-    var client = getClient();
+  close: _close("disconnect"),
 
-    var params = {
-      id: session.connection.id,
-      reason: "disconnect",
-      key: session._key
-    };
-
-    client.del("/connections", params, function(err) {
-      if (err) {
-        console.log(err);
-        return;
-      }
-
-      session._tunnel.close(callback);
-    });
-  },
+  timeout: _close("timeout"),
 
   destroy: function(session) {
     session._tunnel.destroy();
