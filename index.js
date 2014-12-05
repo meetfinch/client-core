@@ -105,6 +105,10 @@ module.exports = {
 
       var tunnel = new Tunnel(response.connection);
 
+      if (options.timeout) {
+        tunnel.timeout = options.timeout;
+      }
+
       session.connection = response.connection;
       session._tunnel = tunnel;
       session._key = options.key;
