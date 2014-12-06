@@ -14,7 +14,6 @@
     "mute-stream": "0.0.4",
     "node-static": "^0.7.6",
     "optimist": "0.6.1",
-    "read": "^1.0.5",
     "ssh2": "makeusabrew/ssh2",
     "streamsearch": "0.1.2",
     "wordwrap": "0.0.2"
@@ -32,7 +31,6 @@
     "mute-stream",
     "node-static",
     "optimist",
-    "read",
     "readable-stream",
     "ssh2",
     "streamsearch",
