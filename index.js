@@ -29,31 +29,36 @@ function getClient() {
   });
 }
 
+function deleteConnection(session, reason, callback) {
+  var client, params;
+
+  client = getClient();
+
+  params = {
+    id: session.connection.id,
+    reason: reason,
+    key: session._key
+  };
+
+  session._closing = true;
+
+  client.del("/connections", params, callback);
+}
+
 function _close(reason) {
   return function(session, callback) {
-    var client, params;
 
     if (session._closing) {
       debug("Ignoring close request; session is already closing");
       return callback();
     }
 
-    client = getClient();
-
-    params = {
-      id: session.connection.id,
-      reason: reason,
-      key: session._key
-    };
-
-    session._closing = true;
-
     /**
      * First of all close the connection from a Finch(server) point of
      * view; the most important thing is to make sure no more traffic
      * passes through it from a billing perspective
      */
-    client.del("/connections", params, function(err) {
+    deleteConnection(session, "disconnect", function(err) {
       if (err) {
         return callback(err);
       }
@@ -64,7 +69,7 @@ function _close(reason) {
        * still rather not unless we have to
        */
       var handler = setTimeout(function() {
-        debug("tunnel close took too long; destroying");
+        debug("Tunnel close took too long; destroying");
         session._tunnel.destroy();
         callback();
       }, CLOSE_TIMEOUT);
@@ -73,7 +78,7 @@ function _close(reason) {
        * Finally, initiate a clean tunnel shutdown
        */
       session._tunnel.close(function(err) {
-        debug("tunnel closed cleanly");
+        debug("Tunnel closed cleanly");
         clearTimeout(handler);
         callback(err);
       });
@@ -103,6 +108,7 @@ function bindListeners(session, tunnel) {
 
     client.get("/connections/ping", params, function(err, response) {
       if (err) {
+        debug("Ignoring invalid ping");
         // probably a misguided ping; silently ignore
         return;
       }
@@ -127,12 +133,22 @@ function bindListeners(session, tunnel) {
   });
 
   tunnel.on("close", function(hadError) {
+    debug("Secure connection closed");
     /**
      * @TODO did we know about this close, or do we need to
      * handle it and initiate a DEL /connections{id} of our own?
      */
     if (!session._closing) {
-      "DEL";
+      debug("Session closed unexpectedly; attempting cleanup");
+
+      // @TODO need a better 'reason' here
+      deleteConnection(session, "disconnect", function(err) {
+        if (err) {
+          debug("Could not clean up connection");
+        } else {
+          debug("Connection cleaned up successfully");
+        }
+      });
     }
     session.emit("close", hadError);
   });
