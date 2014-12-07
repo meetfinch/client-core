@@ -314,5 +314,10 @@ module.exports = {
     });
   },
 
+  request: function(method, url, callback) {
+    var client = getClient();
+    client[method.strToLower()](url, callback);
+  },
+
   config: config
 };
