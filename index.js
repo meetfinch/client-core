@@ -314,9 +314,9 @@ module.exports = {
     });
   },
 
-  request: function(method, url, callback) {
+  request: function(method, url, params, callback) {
     var client = getClient();
-    client[method.strToLower()](url, callback);
+    client[method.toLowerCase()](url, params, callback);
   },
 
   config: config
