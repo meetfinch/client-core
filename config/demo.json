@@ -3,9 +3,11 @@
         "url": "https://canaryhq.io",
         "path": "/api"
     },
-    "server": {
-        "url": "https://canaryhq.io",
-        "protocol": "http"
+    "proxy": {
+        "protocol": "http",
+        "suffix": ""
     },
-    "idle_timeout": 3600000
+    "server": {
+        "url": "https://canaryhq.io"
+    }
 }

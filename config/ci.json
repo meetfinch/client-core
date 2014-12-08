@@ -3,10 +3,11 @@
         "url": "http://localhost:11109",
         "path": ""
     },
-    "server": {
-        "url": "http://localhost",
+    "proxy": {
         "protocol": "http",
         "suffix": ""
     },
-    "idle_timeout": 3600000
+    "server": {
+        "url": "???"
+    }
 }

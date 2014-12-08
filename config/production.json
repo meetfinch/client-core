@@ -3,10 +3,11 @@
         "url": "https://meetfinch.com",
         "path": "/api"
     },
-    "server": {
-        "url": "https://meetfinch.com",
+    "proxy": {
         "protocol": "https",
         "suffix": ""
     },
-    "idle_timeout": 3600000
+    "server": {
+        "url": "https://meetfinch.com"
+    }
 }
