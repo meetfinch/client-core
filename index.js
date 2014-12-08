@@ -212,7 +212,7 @@ function startSession(session, options, callback) {
     for (var i = 0, j = forwards.length; i < j; i++) {
       var f = forwards[i];
       var forward = {
-        url: config.server.protocol + "://" + f.subdomain + "." + response.connection.domain + config.server.suffix
+        url: config.proxy.protocol + "://" + f.subdomain + "." + response.connection.domain + config.proxy.suffix
       };
       session.forwards.push(forward);
     }
