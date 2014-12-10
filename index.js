@@ -179,7 +179,7 @@ function startSession(session, options, callback) {
   var client = getClient();
 
   var params = {
-    // @TODO clientId: xxx,
+    consumer_key: options.consumer_key,
     version: version,
     os_type: os.type(),
     os_platform: os.platform(),
