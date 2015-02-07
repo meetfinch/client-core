@@ -1,6 +1,6 @@
 {
   "name": "finch-core",
-  "version": "0.0.0",
+  "version": "1.2.1",
   "description": "The https://meetfinch.com core API",
   "main": "index.js",
   "engines": {
