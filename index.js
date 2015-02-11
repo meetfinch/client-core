@@ -189,6 +189,10 @@ function startSession(session, options, callback) {
     key: options.key
   };
 
+  if (options.edgy) {
+    params.edgy = options.edgy;
+  }
+
   client.post("/connections", params, function(err, response) {
     if (err || response.warning) {
       return callback(err, response);
