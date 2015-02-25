@@ -48,6 +48,10 @@ function deleteConnection(session, reason, callback) {
 function _close(reason) {
   return function(session, callback) {
 
+    if (!session) {
+      return callback(new Error("No session object provided"));
+    }
+
     if (session._closing) {
       debug("Ignoring close request; session is already closing");
       return callback();
@@ -262,6 +266,16 @@ module.exports = {
     session._tunnel.destroy();
   },
 
+  /**
+   * @TODO: move out of core? It's not really something
+   * everyone's going to care about...
+   *
+   * In fact, it's arguable that preferences are something
+   * each client should implement their own way, using their
+   * own storage etc.
+   *
+   * (re)moving this slims down core nicely
+   */
   load: function(path, callback) {
     // figure out how to find the user's config file
     var loader = new Loader({
@@ -273,8 +287,6 @@ module.exports = {
 
     preferences.load(function(err) {
       if (err) {
-        // @TODO handle
-        console.log("ERROR", err.message);
         return callback(err);
       }
 
@@ -282,25 +294,30 @@ module.exports = {
     });
   },
 
+  /**
+   * @TODO: arguable that this shouldn't live in core
+   * until we can figure out a way to do it using oauth
+   */
   auth: function(params, callback) {
     var client = getClient();
 
-    client.post("/auth", params, function(err, response) {
-      if (err) {
-        console.log("ERROR", err);
-        return callback(err);
-      }
-
-      return callback(null, response);
-    });
+    client.post("/auth", params, callback);
   },
 
+  /**
+   * @TODO: arguable that this shouldn't live in core
+   * until we can figure out a way to do it using oauth
+   */
   register: function(params, callback) {
     var client = getClient();
 
     client.post("/signup", params, callback);
   },
 
+  /**
+   * Swap a token for an overview of the current user
+   * Similar to URLs like /me et al
+   */
   details: function(token, callback) {
     var client = getClient();
 
@@ -318,6 +335,9 @@ module.exports = {
     });
   },
 
+  /**
+   * @TODO: don't expose this
+   */
   request: function(method, url, params, callback) {
     var client = getClient();
     client[method.toLowerCase()](url, params, callback);
