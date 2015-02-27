@@ -11,10 +11,6 @@ var Session = require("./lib/session");
 var os      = require("os");
 // part of API handshake
 var version = require(__dirname + "/package.json").version;
-// to figure out configuration path based on env/os
-var Loader = require("./lib/loader");
-// to load and save user's preferences
-var UserPrefs = require("./lib/preferences");
 // for handling any forwarding errors
 var ErrorHandler = require("./lib/service/handlers/error");
 // any static forwards?
@@ -267,34 +263,6 @@ module.exports = {
   },
 
   /**
-   * @TODO: move out of core? It's not really something
-   * everyone's going to care about...
-   *
-   * In fact, it's arguable that preferences are something
-   * each client should implement their own way, using their
-   * own storage etc.
-   *
-   * (re)moving this slims down core nicely
-   */
-  load: function(path, callback) {
-    // figure out how to find the user's config file
-    var loader = new Loader({
-      env: process.env,
-      file: path
-    });
-
-    var preferences = new UserPrefs(loader.getPath());
-
-    preferences.load(function(err) {
-      if (err) {
-        return callback(err);
-      }
-
-      return callback(null, preferences);
-    });
-  },
-
-  /**
    * @TODO: arguable that this shouldn't live in core
    * until we can figure out a way to do it using oauth
    */
@@ -327,7 +295,6 @@ module.exports = {
 
     client.get("/details", params, function(err, response) {
       if (err) {
-        console.log("ERROR", err);
         return callback(err);
       }
 
