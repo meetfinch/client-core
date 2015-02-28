@@ -293,13 +293,7 @@ module.exports = {
       key: token
     };
 
-    client.get("/details", params, function(err, response) {
-      if (err) {
-        return callback(err);
-      }
-
-      return callback(null, response);
-    });
+    client.get("/details", params, callback);
   },
 
   /**
