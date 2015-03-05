@@ -30,6 +30,11 @@ function deleteConnection(session, reason, callback) {
 
   client = getClient();
 
+  if (!session) {
+    debug("WARN: no session object passed to close, ignoring");
+    return;
+  }
+
   params = {
     id: session.connection.id,
     reason: reason,
@@ -37,6 +42,8 @@ function deleteConnection(session, reason, callback) {
   };
 
   session._closing = true;
+
+  session.emit("closing");
 
   client.del("/connections", params, callback);
 }
@@ -50,6 +57,11 @@ function _close(reason) {
 
     if (session._closing) {
       debug("Ignoring close request; session is already closing");
+      return callback();
+    }
+
+    if (!session.connection) {
+      debug("Ignoring close request; session has no connection object");
       return callback();
     }
 
@@ -195,6 +207,16 @@ function startSession(session, options, callback) {
 
   client.post("/connections", params, function(err, response) {
     if (err || response.warning) {
+      // @TODO should we emit session.close or something?
+      // to be fair we haven't emitted any start events or anything
+      // if we fall in here so there's nothing to cancel out, but it's worth
+      // re-evaluating whether we *should* have emitted by now.
+      //
+      // I understand why nothing has been emitted - because unless this
+      // call succeeds we have no session. But calling clients don't know
+      // that; they just ask for finch.forward() and get a session back
+      // so it should probably emit events which reflect the API call
+      // as well as actually setting up a tunnel
       return callback(err, response);
     }
 
