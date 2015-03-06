@@ -1,6 +1,6 @@
 {
     "api": {
-        "url": "http://192.168.1.100:8886",
+        "url": "http://localhost:8886",
         "path": ""
     },
     "proxy": {
@@ -8,6 +8,6 @@
         "suffix": ":8887"
     },
     "server": {
-        "url": "http://192.168.1.100:8888"
+        "url": "http://localhost:8888"
     }
 }
