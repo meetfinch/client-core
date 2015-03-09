@@ -149,6 +149,16 @@ function bindListeners(session, tunnel) {
     /**
      * @TODO did we know about this close, or do we need to
      * handle it and initiate a DEL /connections{id} of our own?
+     *
+     * No, not quite as above. If we didn't know, we should attempt
+     * to reconnect. Keep track of retries and more importantly gap
+     * between disconnects so that eventually we'll give up, but
+     * the idea here is to temporary survive network outages etc
+     *
+     * Ultimately, *we* should always decide when to close the tunnel,
+     * even if that's an automated decision made by the client rather
+     * than the user. I.e. If !session._closing, always retry. When
+     * the client gives up, it can set _closing to true
      */
     if (!session._closing) {
       debug("Session closed unexpectedly; attempting cleanup");
