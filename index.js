@@ -145,7 +145,7 @@ function bindListeners(session, tunnel) {
   });
 
   tunnel.on("close", function(hadError) {
-    debug("Secure connection closed");
+    debug("Secure connection closed " + (hadError ? "with error" : "without error"));
     /**
      * @TODO did we know about this close, or do we need to
      * handle it and initiate a DEL /connections{id} of our own?
@@ -161,6 +161,11 @@ function bindListeners(session, tunnel) {
      * the client gives up, it can set _closing to true
      */
     if (!session._closing) {
+      if (tunnel.shouldRetry) {
+        debug("Session closed unexpectedly; will retry");
+        return tunnel.retry();
+      }
+
       debug("Session closed unexpectedly; attempting cleanup");
 
       // @TODO need a better 'reason' here
@@ -238,10 +243,16 @@ function startSession(session, options, callback) {
       tunnel.timeout = options.timeout;
     }
 
+    if (options.retries) {
+      tunnel.numRetries = 0;
+      tunnel.shouldRetry = true;
+    }
+
     session.connection = response.connection;
+    session.forwards   = [];
+    // private metadata, effectively (even though it's leaked!)
     session._tunnel    = tunnel;
     session._key       = options.key;
-    session.forwards   = [];
 
     var forwards = response.connection.forwards;
 
