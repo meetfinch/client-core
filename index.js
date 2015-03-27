@@ -69,7 +69,7 @@ function _close(reason) {
      * view; the most important thing is to make sure no more traffic
      * passes through it from a billing perspective
      */
-    deleteConnection(session, "disconnect", function(err) {
+    deleteConnection(session, reason, function(err) {
       if (err) {
         return callback(err);
       }
@@ -137,6 +137,10 @@ function bindListeners(session, tunnel) {
           session._tunnel.close(function() {
             // no-op?
           });
+          break;
+
+        case "ping":
+          // standard keepalive ping, no-op
           break;
 
         default:
