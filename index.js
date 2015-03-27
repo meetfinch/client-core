@@ -42,7 +42,6 @@ function deleteConnection(session, reason, callback) {
   };
 
   session._closing = true;
-
   session.emit("closing");
 
   client.del("/connections", params, callback);
@@ -133,8 +132,11 @@ function bindListeners(session, tunnel) {
 
       switch (type) {
         case "disconnect": // @NOTE: should be revoked, hence why we re-map here
-          session.emit("revoked");
-          session._tunnel.close();
+          session.emit("revoking");
+          session._revoking = true;
+          session._tunnel.close(function() {
+            // no-op?
+          });
           break;
 
         default:
@@ -145,22 +147,30 @@ function bindListeners(session, tunnel) {
   });
 
   tunnel.on("close", function(hadError) {
+    var closeInfo;
     debug("Secure connection closed " + (hadError ? "with error" : "without error"));
-    /**
-     * @TODO did we know about this close, or do we need to
-     * handle it and initiate a DEL /connections{id} of our own?
-     *
-     * No, not quite as above. If we didn't know, we should attempt
-     * to reconnect. Keep track of retries and more importantly gap
-     * between disconnects so that eventually we'll give up, but
-     * the idea here is to temporary survive network outages etc
-     *
-     * Ultimately, *we* should always decide when to close the tunnel,
-     * even if that's an automated decision made by the client rather
-     * than the user. I.e. If !session._closing, always retry. When
-     * the client gives up, it can set _closing to true
-     */
-    if (!session._closing) {
+
+    if (session._revoking) {
+      closeInfo = {
+        reason: "revoked",
+        message: ""
+      };
+    } else if (session._error) {
+      closeInfo = {
+        reason: "error",
+        // @TODO inspect session._error.level
+        message: session._error.level
+      };
+    } else if (!session._closing) {
+      closeInfo = {
+        reason: "unknown",
+        message: ""
+      };
+
+      // note that the early return here means we effectively
+      // never leak the fact the session closed at all. Probably
+      // not quite right. At the very leasat should probably
+      // emit something about the retry
       if (tunnel.shouldRetry) {
         debug("Session closed unexpectedly; will retry");
         return tunnel.retry();
@@ -177,10 +187,12 @@ function bindListeners(session, tunnel) {
         }
       });
     }
-    session.emit("close", hadError);
+
+    session.emit("close", closeInfo);
   });
 
   tunnel.on("error", function(err) {
+    session._error = err;
     session.emit("error", err);
   });
 
