@@ -173,7 +173,7 @@ function bindListeners(session, tunnel) {
 
       // note that the early return here means we effectively
       // never leak the fact the session closed at all. Probably
-      // not quite right. At the very leasat should probably
+      // not quite right. At the very least should probably
       // emit something about the retry
       if (tunnel.shouldRetry) {
         debug("Session closed unexpectedly; will retry");
