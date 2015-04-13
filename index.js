@@ -275,12 +275,15 @@ function startSession(session, options, callback) {
     for (var i = 0, j = forwards.length; i < j; i++) {
       var f = forwards[i];
       var shortUrl = f.subdomain + "." +  response.connection.domain;
+      var url = config.proxy.protocol + "://" + shortUrl + config.proxy.suffix;
+      if (f.path) {
+        url += "/" + f.path;
+      }
       var forward = {
-        url: config.proxy.protocol + "://" + shortUrl + config.proxy.suffix,
+        url: url,
         // sometimes we don't care about protocol or port suffix
-        shortUrl : shortUrl
-        // @TODO
-        // title: f.title
+        shortUrl : shortUrl,
+        title: f.title
       };
       session.forwards.push(forward);
     }
