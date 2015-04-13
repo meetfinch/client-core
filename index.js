@@ -16,7 +16,8 @@ var ErrorHandler = require("./lib/service/handlers/error");
 // any static forwards?
 var StaticManager = require("./lib/service/static/manager");
 
-var CLOSE_TIMEOUT = 5000;
+var CLOSE_TIMEOUT = 5e3;
+var DEFAULT_IDLE_TIMEOUT = 36e5;
 
 function getClient() {
   return new Client({
@@ -256,7 +257,12 @@ function startSession(session, options, callback) {
     var tunnel = new Tunnel(response.connection);
 
     if (options.timeout) {
+      // convert a strict boolean into a sensible default
+      if (options.timeout === true) {
+        options.timeout = DEFAULT_IDLE_TIMEOUT;
+      }
       tunnel.timeout = options.timeout;
+      debug("Setting tunnel timeout of " + tunnel.timeout);
     }
 
     if (options.retries) {
