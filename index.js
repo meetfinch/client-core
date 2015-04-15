@@ -115,6 +115,12 @@ function bindListeners(session, tunnel) {
   var errorHandler = new ErrorHandler();
 
   tunnel.on("connect", function() {
+    // have to clean these up otherwise they hang around on the object
+    // meaning if we later disconnect cleanly they're still stuck on
+    session._error = null;
+    session._revoking = null;
+    session._closing = false;
+
     session.emit("connect");
   });
 
@@ -171,13 +177,15 @@ function bindListeners(session, tunnel) {
     if (session._revoking) {
       closeInfo = {
         reason: "revoked",
-        message: ""
+        message: "Connection revoked!",
+        willRetry: false
       };
     } else if (session._error) {
       var level = session._error.level;
       closeInfo = {
         reason: "error",
-        message: translateServerError(level)
+        message: translateServerError(level),
+        willRetry: false
       };
 
       // levels so far:
@@ -187,17 +195,20 @@ function bindListeners(session, tunnel) {
       if (level !== "client-authentication" && session.shouldRetry) {
         debug("Session closed with error; will retry anyway");
         tunnel.retry();
+        closeInfo.willRetry = true;
       }
 
     } else if (!session._closing) {
       closeInfo = {
         reason: "unexpected",
-        message: "Connection lost"
+        message: "Connection lost",
+        willRetry: false
       };
 
       if (session.shouldRetry) {
         debug("Session closed unexpectedly; will retry");
         tunnel.retry();
+        closeInfo.willRetry = true;
       } else {
         debug("Session closed unexpectedly; attempting cleanup");
 
@@ -211,11 +222,6 @@ function bindListeners(session, tunnel) {
         });
       }
     }
-
-    // have to clean these up otherwise they hang around on the object
-    // meaning if we later disconnect cleanly they're still stuck on
-    session._error = null;
-    session._revoking = null;
 
     session.emit("close", closeInfo);
   });
