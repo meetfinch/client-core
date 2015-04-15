@@ -20,16 +20,23 @@ var CLOSE_TIMEOUT = 5e3;
 var DEFAULT_IDLE_TIMEOUT = 36e5;
 var MAX_RETRY_COUNT = 100;
 
+function reset(session) {
+  session._error = null;
+  session._revoking = null;
+  session._closing = false;
+  session._numRetries = MAX_RETRY_COUNT;
+}
+
 function shouldRetry(session) {
   if (!session.shouldRetry) {
     return false;
   }
 
-  if (session._numRetries >= MAX_RETRY_COUNT) {
+  if (session._numRetries <= 0) {
     return false;
   }
 
-  session._numRetries ++;
+  session._numRetries --;
   return true;
 }
 
@@ -131,10 +138,7 @@ function bindListeners(session, tunnel) {
   tunnel.on("connect", function() {
     // clear down some internal markers which otherwise could hang
     // around between retries
-    session._error = null;
-    session._revoking = null;
-    session._closing = false;
-    session._numRetries = 0;
+    reset(session);
 
     session.emit("connect");
   });
@@ -313,6 +317,8 @@ function startSession(session, options, callback) {
     if (options.retries) {
       session.shouldRetry = true;
     }
+
+    reset(session);
 
     session.connection = response.connection;
     session.forwards   = [];
