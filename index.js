@@ -1,6 +1,6 @@
 var config  = require("./config");
 // handy internal debugging
-var debug   = require("./lib/debug");
+var debug   = require("debug")("finch:core:client");
 // low-level wrapper around our connection transport of choice
 var Tunnel  = require("./lib/tunnel");
 // for making API requests
@@ -76,12 +76,13 @@ function deleteConnection(session, reason, callback) {
     key: session._key
   };
 
-  session._closing = true;
-  session.emit("closing");
-
   client.del("/connections", params, callback);
 }
 
+/**
+ * This is a user initiated close; it should never be invoked when
+ * deciding to close the tunnel internally (i.e. to to error or revocation)
+ */
 function _close(reason) {
   return function(session, callback) {
 
@@ -98,6 +99,13 @@ function _close(reason) {
       debug("Ignoring close request; session has no connection object");
       return callback();
     }
+
+    debug("Closing session " + session.connection.id);
+
+    reset(session);
+
+    session._closing = true;
+    session.emit("closing");
 
     /**
      * First of all close the connection from a Finch(server) point of
@@ -215,9 +223,29 @@ function bindListeners(session, tunnel) {
         debug("Session closed with error; will retry anyway");
         tunnel.retry();
         closeInfo.willRetry = true;
+      } else {
+        debug("Session closed with error %s; not retrying", level);
+
+        // @TODO need a better 'reason' here
+        deleteConnection(session, "disconnect", function(err) {
+          if (err) {
+            debug("Could not clean up connection");
+          } else {
+            debug("Connection cleaned up successfully");
+          }
+        });
       }
 
     } else if (!session._closing) {
+      /**
+       * We can end up in this situation if the server closes our connection cleanly
+       * but we didn't ask it to. As such if retries are disabled we need to make
+       * sure we try and clean up the connection from an API point of view.
+       *
+       * Arguably the API cleanup here isn't necessary; the server could/should perhaps
+       * do this instead except for the fact it doesn't know the difference between
+       * a loss of connection and the end of one
+       */
       closeInfo = {
         reason: "unexpected",
         message: "Connection lost",
@@ -226,8 +254,8 @@ function bindListeners(session, tunnel) {
 
       if (shouldRetry(session)) {
         debug("Session closed unexpectedly; will retry");
-        tunnel.retry();
         closeInfo.willRetry = true;
+        tunnel.retry();
       } else {
         debug("Session closed unexpectedly; attempting cleanup");
 
@@ -314,7 +342,7 @@ function startSession(session, options, callback) {
       debug("Setting tunnel timeout of " + tunnel.timeout);
     }
 
-    if (options.retries) {
+    if (options.retry) {
       session.shouldRetry = true;
     }
 
