@@ -18,6 +18,20 @@ var StaticManager = require("./lib/service/static/manager");
 
 var CLOSE_TIMEOUT = 5e3;
 var DEFAULT_IDLE_TIMEOUT = 36e5;
+var MAX_RETRY_COUNT = 100;
+
+function shouldRetry(session) {
+  if (!session.shouldRetry) {
+    return false;
+  }
+
+  if (session._numRetries >= MAX_RETRY_COUNT) {
+    return false;
+  }
+
+  session._numRetries ++;
+  return true;
+}
 
 function translateServerError(level) {
   switch (level) {
@@ -115,11 +129,12 @@ function bindListeners(session, tunnel) {
   var errorHandler = new ErrorHandler();
 
   tunnel.on("connect", function() {
-    // have to clean these up otherwise they hang around on the object
-    // meaning if we later disconnect cleanly they're still stuck on
+    // clear down some internal markers which otherwise could hang
+    // around between retries
     session._error = null;
     session._revoking = null;
     session._closing = false;
+    session._numRetries = 0;
 
     session.emit("connect");
   });
@@ -192,7 +207,7 @@ function bindListeners(session, tunnel) {
       // client-authentication, i.e. rejected context
       // client-socket, i.e. server unavailable
 
-      if (level !== "client-authentication" && session.shouldRetry) {
+      if (level !== "client-authentication" && shouldRetry(session)) {
         debug("Session closed with error; will retry anyway");
         tunnel.retry();
         closeInfo.willRetry = true;
@@ -205,7 +220,7 @@ function bindListeners(session, tunnel) {
         willRetry: false
       };
 
-      if (session.shouldRetry) {
+      if (shouldRetry(session)) {
         debug("Session closed unexpectedly; will retry");
         tunnel.retry();
         closeInfo.willRetry = true;
@@ -296,7 +311,6 @@ function startSession(session, options, callback) {
     }
 
     if (options.retries) {
-      session.numRetries = 0;
       session.shouldRetry = true;
     }
 
