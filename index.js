@@ -19,6 +19,19 @@ var StaticManager = require("./lib/service/static/manager");
 var CLOSE_TIMEOUT = 5e3;
 var DEFAULT_IDLE_TIMEOUT = 36e5;
 
+function translateServerError(level) {
+  switch (level) {
+    case "client-socket":
+      return "Server unavailable";
+
+    case "client-authentication":
+      return "Authentication failed";
+
+    default:
+      return level;
+  }
+}
+
 function getClient() {
   return new Client({
     url: config.api.url,
@@ -161,37 +174,48 @@ function bindListeners(session, tunnel) {
         message: ""
       };
     } else if (session._error) {
+      var level = session._error.level;
       closeInfo = {
         reason: "error",
-        // @TODO inspect session._error.level
-        message: session._error.level
-      };
-    } else if (!session._closing) {
-      closeInfo = {
-        reason: "unknown",
-        message: ""
+        message: translateServerError(level)
       };
 
-      // note that the early return here means we effectively
-      // never leak the fact the session closed at all. Probably
-      // not quite right. At the very least should probably
-      // emit something about the retry
-      if (tunnel.shouldRetry) {
-        debug("Session closed unexpectedly; will retry");
-        return tunnel.retry();
+      // levels so far:
+      // client-authentication, i.e. rejected context
+      // client-socket, i.e. server unavailable
+
+      if (level !== "client-authentication" && session.shouldRetry) {
+        debug("Session closed with error; will retry anyway");
+        tunnel.retry();
       }
 
-      debug("Session closed unexpectedly; attempting cleanup");
+    } else if (!session._closing) {
+      closeInfo = {
+        reason: "unexpected",
+        message: "Connection lost"
+      };
 
-      // @TODO need a better 'reason' here
-      deleteConnection(session, "disconnect", function(err) {
-        if (err) {
-          debug("Could not clean up connection");
-        } else {
-          debug("Connection cleaned up successfully");
-        }
-      });
+      if (session.shouldRetry) {
+        debug("Session closed unexpectedly; will retry");
+        tunnel.retry();
+      } else {
+        debug("Session closed unexpectedly; attempting cleanup");
+
+        // @TODO need a better 'reason' here
+        deleteConnection(session, "disconnect", function(err) {
+          if (err) {
+            debug("Could not clean up connection");
+          } else {
+            debug("Connection cleaned up successfully");
+          }
+        });
+      }
     }
+
+    // have to clean these up otherwise they hang around on the object
+    // meaning if we later disconnect cleanly they're still stuck on
+    session._error = null;
+    session._revoking = null;
 
     session.emit("close", closeInfo);
   });
@@ -266,8 +290,8 @@ function startSession(session, options, callback) {
     }
 
     if (options.retries) {
-      tunnel.numRetries = 0;
-      tunnel.shouldRetry = true;
+      session.numRetries = 0;
+      session.shouldRetry = true;
     }
 
     session.connection = response.connection;
