@@ -298,6 +298,12 @@ function bindListeners(session, tunnel) {
 
 function startSession(session, options, callback) {
   var client = getClient();
+  var singleForward = false;
+
+  // allow a single forward
+  if (options.forward) {
+    singleForward = true;
+  }
 
   var params = {
     consumer_key: options.consumer_key,
@@ -328,10 +334,19 @@ function startSession(session, options, callback) {
       // as well as actually setting up a tunnel
       return callback(err, response);
     }
+    var connection = response.connection;
 
-    debug("Connection ID: " + response.connection.id);
+    debug("Connection ID: %s", connection.id);
 
-    var tunnel = new Tunnel(response.connection);
+    var tunnel = new Tunnel({
+      id: connection.id,
+      forwards: connection.forwards,
+      host: connection.host,
+      port: connection.sshPort,
+      user: connection.user,
+      key: connection.key,
+      forwardPort: connection.forwardPort
+    });
 
     if (options.timeout) {
       // convert a strict boolean into a sensible default
@@ -342,6 +357,7 @@ function startSession(session, options, callback) {
       debug("Setting tunnel timeout of " + tunnel.timeout);
     }
 
+    // @TODO: edgy only
     if (options.retry) {
       session.shouldRetry = true;
     }
@@ -349,12 +365,12 @@ function startSession(session, options, callback) {
     reset(session);
 
     session.connection = response.connection;
-    session.forwards   = [];
     // private metadata, effectively (even though it's leaked!)
     session._tunnel    = tunnel;
     session._key       = options.key;
 
     var forwards = response.connection.forwards;
+    var filtered = [];
 
     for (var i = 0, j = forwards.length; i < j; i++) {
       var f = forwards[i];
@@ -364,12 +380,24 @@ function startSession(session, options, callback) {
         url += "/" + f.path;
       }
       var forward = {
+        // https://foo.usefinch.com/path/here
         url: url,
-        // sometimes we don't care about protocol or port suffix
+        // foo.usefinch.com
         shortUrl : shortUrl,
+        // not altered; just nice to return back to the caller
         title: f.title
       };
-      session.forwards.push(forward);
+
+      filtered.push(forward);
+    }
+
+    // watch it; references ahoy here
+    if (singleForward) {
+      session.forward = filtered[0];
+      response.forward = filtered[0];
+    } else {
+      session.forwards = filtered;
+      response.forwards = filtered;
     }
 
     bindListeners(session, tunnel);
@@ -389,6 +417,10 @@ module.exports = {
 
     // @TODO: parse/validate options first...
 
+    if (options.forward) {
+      options.forwards = [options.forward];
+    }
+
     StaticManager.start(options.forwards, function(err, servers, forwards) {
       if (err) {
         return callback(err);
@@ -397,6 +429,9 @@ module.exports = {
       // re-assign our forwards just in case the static manager has adjusted
       // them a little bit
       options.forwards = forwards;
+      if (options.forward) {
+        options.forward = forwards[0];
+      }
 
       startSession(session, options, callback);
 
