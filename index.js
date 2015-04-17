@@ -15,6 +15,8 @@ var version = require(__dirname + "/package.json").version;
 var ErrorHandler = require("./lib/service/handlers/error");
 // any static forwards?
 var StaticManager = require("./lib/service/static/manager");
+// any proxy settings to worry about?
+var proxy;
 
 var CLOSE_TIMEOUT = 5e3;
 var DEFAULT_IDLE_TIMEOUT = 36e5;
@@ -56,7 +58,8 @@ function translateServerError(level) {
 function getClient() {
   return new Client({
     url: config.api.url,
-    path: config.api.path
+    path: config.api.path,
+    proxy: proxy
   });
 }
 
@@ -478,5 +481,10 @@ module.exports = {
     client[method.toLowerCase()](url, params, callback);
   },
 
-  config: config
+  config: config,
+
+  setProxy: function(_proxy) {
+    debug("proxy", _proxy);
+    proxy = _proxy;
+  }
 };
