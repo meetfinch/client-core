@@ -457,16 +457,6 @@ module.exports = {
   },
 
   /**
-   * @TODO: arguable that this shouldn't live in core
-   * until we can figure out a way to do it using oauth
-   */
-  register: function(params, callback) {
-    var client = getClient();
-
-    client.post("/signup", params, callback);
-  },
-
-  /**
    * Swap a token for an overview of the current user
    * Similar to URLs like /me et al
    */
