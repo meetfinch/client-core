@@ -226,8 +226,7 @@ function bindListeners(session, tunnel) {
       } else {
         debug("Session closed with error %s; not retrying", level);
 
-        // @TODO need a better 'reason' here
-        deleteConnection(session, "disconnect", function(err) {
+        deleteConnection(session, "connection-error", function(err) {
           if (err) {
             debug("Could not clean up connection");
           } else {
@@ -259,8 +258,7 @@ function bindListeners(session, tunnel) {
       } else {
         debug("Session closed unexpectedly; attempting cleanup");
 
-        // @TODO need a better 'reason' here
-        deleteConnection(session, "disconnect", function(err) {
+        deleteConnection(session, "unknown-error", function(err) {
           if (err) {
             debug("Could not clean up connection");
           } else {
