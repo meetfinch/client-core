@@ -2,6 +2,11 @@
   "name": "finch-core",
   "version": "1.3.0",
   "description": "The https://meetfinch.com core API",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/meetfinch/finch-core.git"
+  },
+  "author": "Nick Payne <nick@fullfatfinch.com>",
   "main": "index.js",
   "engines": {
     "node": ">=0.10.0"
