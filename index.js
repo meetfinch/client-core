@@ -307,7 +307,7 @@ function startSession(session, options, callback) {
   }
 
   var params = {
-    consumer_key: options.consumer_key,
+    consumer_id: options.consumer_id,
     version: version,
     os_type: os.type(),
     os_platform: os.platform(),
@@ -483,6 +483,9 @@ module.exports = {
 
   config: config,
 
+  // @TODO: the rest of core isn't stateful, and neither
+  // should this be. But how do we make our other methods
+  // like auth, details etc stateless?
   setProxy: function(_proxy) {
     debug("proxy", _proxy);
     proxy = _proxy;
