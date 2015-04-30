@@ -30,7 +30,7 @@ function reset(session) {
 }
 
 function shouldRetry(session) {
-  if (!session.shouldRetry) {
+  if (!session.shouldRetry || session._closing) {
     return false;
   }
 
@@ -109,6 +109,8 @@ function _close(reason) {
 
     session._closing = true;
     session.emit("closing");
+    // in case we had a retry or idle timer in progress
+    session._tunnel.clearHandlers();
 
     /**
      * First of all close the connection from a Finch(server) point of
@@ -231,7 +233,7 @@ function bindListeners(session, tunnel) {
 
         deleteConnection(session, "connection-error", function(err) {
           if (err) {
-            debug("Could not clean up connection");
+            debug("Could not clean up connection", err);
           } else {
             debug("Connection cleaned up successfully");
           }
