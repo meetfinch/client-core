@@ -149,14 +149,15 @@ function bindListeners(session, tunnel) {
   var errorHandler = new ErrorHandler();
 
   tunnel.on("connect", function() {
-    // clear down some internal markers which otherwise could hang
-    // around between retries
-    reset(session);
-
+    // @NOTE: be careful; connect isn't reliable as
+    // it can be emitted even when the server is down
     session.emit("connect");
   });
 
   tunnel.on("ready", function(err) {
+    // clear down some internal markers which otherwise could hang
+    // around between retries
+    reset(session);
     session.emit("ready", err);
   });
 
