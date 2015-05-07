@@ -350,7 +350,8 @@ function startSession(session, options, callback) {
       port: connection.sshPort,
       user: connection.user,
       key: connection.key,
-      forwardPort: connection.forwardPort
+      forwardPort: connection.forwardPort,
+      keepalive: options.keepalive
     });
 
     if (options.timeout) {
