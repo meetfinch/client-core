@@ -217,6 +217,7 @@ function bindListeners(session, tunnel) {
       var level = session._error.level;
       closeInfo = {
         reason: "error",
+        level: level,
         message: translateServerError(level),
         willRetry: false
       };
@@ -490,7 +491,7 @@ module.exports = {
   // should this be. But how do we make our other methods
   // like auth, details etc stateless?
   setProxy: function(_proxy) {
-    debug("proxy", _proxy);
+    debug("setProxy(%s)", _proxy);
     proxy = _proxy;
   }
 };
