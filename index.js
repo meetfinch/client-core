@@ -42,6 +42,10 @@ function shouldRetry(session) {
   return true;
 }
 
+function retryLevel(level) {
+  return ["client-authentication", "client-timeout"].indexOf(level) === -1;
+}
+
 function translateServerError(level) {
   switch (level) {
     case "client-socket":
@@ -49,6 +53,9 @@ function translateServerError(level) {
 
     case "client-authentication":
       return "Authentication failed";
+
+    case "client-timeout":
+      return "Could not connect";
 
     default:
       return level;
@@ -205,7 +212,7 @@ function bindListeners(session, tunnel) {
 
   tunnel.on("close", function(hadError) {
     var closeInfo;
-    debug("Secure connection closed " + (hadError ? "with error" : "without error"));
+    debug("Secure connection closed");
 
     if (session._revoking) {
       closeInfo = {
@@ -225,8 +232,9 @@ function bindListeners(session, tunnel) {
       // levels so far:
       // client-authentication, i.e. rejected context
       // client-socket, i.e. server unavailable
+      // client-timeout, i.e. server probably blocked
 
-      if (level !== "client-authentication" && shouldRetry(session)) {
+      if (retryLevel(level) && shouldRetry(session)) {
         debug("Session closed with error; will retry anyway");
         tunnel.retry();
         closeInfo.willRetry = true;
