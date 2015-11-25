@@ -399,7 +399,13 @@ function startSession(session, options, callback) {
         // foo.usefinch.com
         shortUrl : shortUrl,
         // not altered; just nice to return back to the caller
-        title: f.title
+        title: f.title,
+        // needed to key a connectionId:subdomain together for updates
+        subdomain: f.subdomain,
+        // clients need to know about these to keep their UI up-to-date
+        rewrite_links: f.rewrite_links,
+        restrict_path: f.restrict_path,
+        synchronize: f.synchronize
       };
 
       filtered.push(forward);
@@ -502,5 +508,13 @@ module.exports = {
   setProxy: function(_proxy) {
     debug("setProxy(%s)", _proxy);
     proxy = _proxy;
+  },
+
+  update: function(params, callback) {
+    var client = getClient();
+
+    debug(params);
+
+    client.put("/connections", params, callback);
   }
 };
