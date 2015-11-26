@@ -512,9 +512,6 @@ module.exports = {
 
   update: function(params, callback) {
     var client = getClient();
-
-    debug(params);
-
     client.put("/connections", params, callback);
   }
 };
