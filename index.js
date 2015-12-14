@@ -20,7 +20,7 @@ var proxy;
 
 var CLOSE_TIMEOUT = 5e3;
 var DEFAULT_IDLE_TIMEOUT = 36e5;
-var MAX_RETRY_COUNT = 100;
+var MAX_RETRY_COUNT = 200;
 
 function reset(session) {
   session._error = null;
