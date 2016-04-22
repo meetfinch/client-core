@@ -326,7 +326,8 @@ function startSession(session, options, callback) {
     os_arch: os.arch(),
     os_release: os.release(),
     forwards: options.forwards,
-    key: options.key
+    key: options.key,
+    protocol: options.protocol
   };
 
   if (options.edgy) {
@@ -359,7 +360,9 @@ function startSession(session, options, callback) {
       user: connection.user,
       key: connection.key,
       forwardPort: connection.forwardPort,
-      keepalive: options.keepalive
+      keepalive: options.keepalive,
+      // opt in for WS or SSH
+      protocol: options.protocol
     });
 
     if (options.timeout) {
@@ -436,6 +439,11 @@ module.exports = {
     var session = new Session();
 
     // @TODO: parse/validate options first...
+
+    if (["ssh", "websocket"].indexOf(options.protocol || "") === -1) {
+      debug("Warning: defaulting to SSH protocol. Please specify with options.protocol. Valid options are 'ssh' and 'websocket'");
+      options.protocol = "ssh";
+    }
 
     if (options.forward) {
       options.forwards = [options.forward];
