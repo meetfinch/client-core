@@ -334,6 +334,10 @@ function startSession(session, options, callback) {
     params.edgy = options.edgy;
   }
 
+  if (options.cluster) {
+    params.cluster = options.cluster;
+  }
+
   client.post("/connections", params, function(err, response) {
     if (err || response.warning) {
       // @TODO should we emit session.close or something?
