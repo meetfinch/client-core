@@ -482,6 +482,12 @@ module.exports = {
     client.post("/auth", params, callback);
   },
 
+  signup: function(params, callback) {
+    var client = getClient();
+
+    client.post("/signup", params, callback);
+  },
+
   /**
    * Swap a token for an overview of the current user
    * Similar to URLs like /me et al
