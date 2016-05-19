@@ -327,7 +327,8 @@ function startSession(session, options, callback) {
     os_release: os.release(),
     forwards: options.forwards,
     key: options.key,
-    protocol: options.protocol
+    protocol: options.protocol,
+    cache: options.cache
   };
 
   if (options.edgy) {
