@@ -15,6 +15,8 @@ var version = require(__dirname + "/package.json").version;
 var ErrorHandler = require("./lib/service/handlers/error");
 // any static forwards?
 var StaticManager = require("./lib/service/static/manager");
+var macaddress = require("macaddress");
+var crypto = require("crypto");
 // any proxy settings to worry about?
 var proxy;
 
@@ -310,127 +312,132 @@ function bindListeners(session, tunnel) {
 }
 
 function startSession(session, options, callback) {
-  var client = getClient();
-  var singleForward = false;
 
-  // allow a single forward
-  if (options.forward) {
-    singleForward = true;
-  }
+  macaddress.one(function(err, mac) {
 
-  var params = {
-    consumer_id: options.consumer_id,
-    version: version,
-    os_type: os.type(),
-    os_platform: os.platform(),
-    os_arch: os.arch(),
-    os_release: os.release(),
-    forwards: options.forwards,
-    key: options.key
-  };
+    var client = getClient();
+    var singleForward = false;
 
-  if (options.edgy) {
-    params.edgy = options.edgy;
-  }
-
-  if (options.cluster) {
-    params.cluster = options.cluster;
-  }
-
-  client.post("/connections", params, function(err, response) {
-    if (err || response.warning) {
-      // @TODO should we emit session.close or something?
-      // to be fair we haven't emitted any start events or anything
-      // if we fall in here so there's nothing to cancel out, but it's worth
-      // re-evaluating whether we *should* have emitted by now.
-      //
-      // I understand why nothing has been emitted - because unless this
-      // call succeeds we have no session. But calling clients don't know
-      // that; they just ask for finch.forward() and get a session back
-      // so it should probably emit events which reflect the API call
-      // as well as actually setting up a tunnel
-      return callback(err, response);
+    // allow a single forward
+    if (options.forward) {
+      singleForward = true;
     }
-    var connection = response.connection;
 
-    debug("Connection ID: %s", connection.id);
+    var params = {
+      consumer_id: options.consumer_id,
+      version: version,
+      os_type: os.type(),
+      os_platform: os.platform(),
+      os_arch: os.arch(),
+      os_release: os.release(),
+      mac: crypto.createHash("sha1").update(mac).digest("hex"),
+      forwards: options.forwards,
+      key: options.key
+    };
 
-    var tunnel = new Tunnel({
-      id: connection.id,
-      forwards: connection.forwards,
-      host: connection.host,
-      port: connection.sshPort,
-      user: connection.user,
-      key: connection.key,
-      forwardPort: connection.forwardPort,
-      keepalive: options.keepalive
-    });
+    if (options.edgy) {
+      params.edgy = options.edgy;
+    }
 
-    if (options.timeout) {
-      // convert a strict boolean into a sensible default
-      if (options.timeout === true) {
-        options.timeout = DEFAULT_IDLE_TIMEOUT;
+    if (options.cluster) {
+      params.cluster = options.cluster;
+    }
+
+    client.post("/connections", params, function(err, response) {
+      if (err || response.warning) {
+        // @TODO should we emit session.close or something?
+        // to be fair we haven't emitted any start events or anything
+        // if we fall in here so there's nothing to cancel out, but it's worth
+        // re-evaluating whether we *should* have emitted by now.
+        //
+        // I understand why nothing has been emitted - because unless this
+        // call succeeds we have no session. But calling clients don't know
+        // that; they just ask for finch.forward() and get a session back
+        // so it should probably emit events which reflect the API call
+        // as well as actually setting up a tunnel
+        return callback(err, response);
       }
-      tunnel.timeout = options.timeout;
-      debug("Setting tunnel timeout of " + tunnel.timeout);
-    }
+      var connection = response.connection;
 
-    // @TODO: edgy only
-    if (options.retry) {
-      session.shouldRetry = true;
-    }
+      debug("Connection ID: %s", connection.id);
 
-    reset(session);
+      var tunnel = new Tunnel({
+        id: connection.id,
+        forwards: connection.forwards,
+        host: connection.host,
+        port: connection.sshPort,
+        user: connection.user,
+        key: connection.key,
+        forwardPort: connection.forwardPort,
+        keepalive: options.keepalive
+      });
 
-    session.connection = response.connection;
-    // private metadata, effectively (even though it's leaked!)
-    session._tunnel    = tunnel;
-    session._key       = options.key;
-
-    var forwards = response.connection.forwards;
-    var filtered = [];
-
-    for (var i = 0, j = forwards.length; i < j; i++) {
-      var f = forwards[i];
-      var shortUrl = f.subdomain + "." +  response.connection.domain;
-      var url = config.proxy.protocol + "://" + shortUrl + config.proxy.suffix;
-      if (f.path) {
-        url += "/" + f.path;
+      if (options.timeout) {
+        // convert a strict boolean into a sensible default
+        if (options.timeout === true) {
+          options.timeout = DEFAULT_IDLE_TIMEOUT;
+        }
+        tunnel.timeout = options.timeout;
+        debug("Setting tunnel timeout of " + tunnel.timeout);
       }
-      var forward = {
-        // https://foo.usefinch.com/path/here
-        url: url,
-        // foo.usefinch.com
-        shortUrl : shortUrl,
-        // not altered; just nice to return back to the caller
-        title: f.title,
-        // needed to key a connectionId:subdomain together for updates
-        subdomain: f.subdomain,
-        // clients need to know about these to keep their UI up-to-date
-        rewrite_links: f.rewrite_links,
-        restrict_path: f.restrict_path,
-        synchronize: f.synchronize
-      };
 
-      filtered.push(forward);
-    }
+      // @TODO: edgy only
+      if (options.retry) {
+        session.shouldRetry = true;
+      }
 
-    // watch it; references ahoy here
-    if (singleForward) {
-      session.forward = filtered[0];
-      response.forward = filtered[0];
-    } else {
-      session.forwards = filtered;
-      response.forwards = filtered;
-    }
+      reset(session);
 
-    bindListeners(session, tunnel);
+      session.connection = response.connection;
+      // private metadata, effectively (even though it's leaked!)
+      session._tunnel    = tunnel;
+      session._key       = options.key;
 
-    callback(null, response);
+      var forwards = response.connection.forwards;
+      var filtered = [];
 
-    session.emit("start");
+      for (var i = 0, j = forwards.length; i < j; i++) {
+        var f = forwards[i];
+        var shortUrl = f.subdomain + "." +  response.connection.domain;
+        var url = config.proxy.protocol + "://" + shortUrl + config.proxy.suffix;
+        if (f.path) {
+          url += "/" + f.path;
+        }
+        var forward = {
+          // https://foo.usefinch.com/path/here
+          url: url,
+          // foo.usefinch.com
+          shortUrl : shortUrl,
+          // not altered; just nice to return back to the caller
+          title: f.title,
+          // needed to key a connectionId:subdomain together for updates
+          subdomain: f.subdomain,
+          // clients need to know about these to keep their UI up-to-date
+          rewrite_links: f.rewrite_links,
+          restrict_path: f.restrict_path,
+          synchronize: f.synchronize
+        };
 
-    tunnel.connect();
+        filtered.push(forward);
+      }
+
+      // watch it; references ahoy here
+      if (singleForward) {
+        session.forward = filtered[0];
+        response.forward = filtered[0];
+      } else {
+        session.forwards = filtered;
+        response.forwards = filtered;
+      }
+
+      bindListeners(session, tunnel);
+
+      callback(null, response);
+
+      session.emit("start");
+
+      tunnel.connect();
+    }); 
   });
 }
 
