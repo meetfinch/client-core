@@ -332,7 +332,9 @@ function startSession(session, options, callback) {
       os_release: os.release(),
       mac: crypto.createHash("sha1").update(mac).digest("hex"),
       forwards: options.forwards,
-      key: options.key
+      key: options.key,
+      protocol: options.protocol,
+      cache: options.cache
     };
 
     if (options.edgy) {
@@ -369,7 +371,9 @@ function startSession(session, options, callback) {
         user: connection.user,
         key: connection.key,
         forwardPort: connection.forwardPort,
-        keepalive: options.keepalive
+        keepalive: options.keepalive,
+        // opt in to WS or SSH
+        protocol: options.protocol
       });
 
       if (options.timeout) {
