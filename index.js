@@ -314,7 +314,7 @@ function bindListeners(session, tunnel) {
 function startSession(session, options, callback) {
 
   macaddress.one(function(err, mac) {
-    if (err) {
+    if (err || !mac) {
       debug("Could not get mac address", err);
       mac = null;
     } else {
