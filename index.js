@@ -314,6 +314,12 @@ function bindListeners(session, tunnel) {
 function startSession(session, options, callback) {
 
   macaddress.one(function(err, mac) {
+    if (err) {
+      debug("Could not get mac address", err);
+      mac = null;
+    } else {
+      mac = crypto.createHash("sha1").update(mac).digest("hex");
+    }
 
     var client = getClient();
     var singleForward = false;
@@ -330,7 +336,7 @@ function startSession(session, options, callback) {
       os_platform: os.platform(),
       os_arch: os.arch(),
       os_release: os.release(),
-      mac: crypto.createHash("sha1").update(mac).digest("hex"),
+      mac: mac,
       forwards: options.forwards,
       key: options.key,
       protocol: options.protocol,
