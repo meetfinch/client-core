@@ -17,6 +17,7 @@ var ErrorHandler = require("./lib/service/handlers/error");
 var StaticManager = require("./lib/service/static/manager");
 var macaddress = require("macaddress");
 var crypto = require("crypto");
+var Parser = require("./lib/parser");
 // any proxy settings to worry about?
 var proxy;
 
@@ -453,17 +454,51 @@ function startSession(session, options, callback) {
 
 module.exports = {
   forward: function(options, callback) {
+    options = options || {};
+
+    if (!callback) {
+      throw new Error("Please supply a callback argument");
+    }
 
     var session = new Session();
+    var exclusiveOptions = ["url", "site", "forwards", "forward"];
+    var suppliedOptions = [];
+    var msg;
 
-    // @TODO: parse/validate options first...
+    exclusiveOptions.forEach(function(key) {
+      if (options[key]) {
+        suppliedOptions.push(key);
+      }
+    });
+
+    if (suppliedOptions.length === 0) {
+      msg = "Please supply one of: " + exclusiveOptions.join(", ");
+      return callback(new Error(msg));
+    }
+
+    if (suppliedOptions.length > 1) {
+      msg = "The options " + suppliedOptions.join(", ") + " are mutually exclusive";
+      return callback(new Error(msg));
+    }
 
     if (["ssh", "websocket"].indexOf(options.protocol || "") === -1) {
       debug("Warning: defaulting to SSH protocol. Please specify with options.protocol. Valid options are 'ssh' and 'websocket'");
       options.protocol = "ssh";
     }
 
-    if (options.forward) {
+    // support for simple input of a plain URL
+    if (options.url) {
+      debug("Attempting to parse '%s'", options.url);
+      options.forwards = [
+        module.exports.parseString(options.url)
+      ];
+    } else if (options.site) {
+      debug("Assuming site title '%s'", options.title);
+      options.forwards = [{
+        title: options.site
+      }];
+    } else if (options.forward) {
+      debug("Mapping single forward to array of forwards");
       options.forwards = [options.forward];
     }
 
@@ -484,6 +519,10 @@ module.exports = {
     });
 
     return session;
+  },
+
+  share: function(options, callback) {
+    return module.exports.forward(options, callback);
   },
 
   close: _close("disconnect"),
@@ -545,5 +584,9 @@ module.exports = {
   update: function(params, callback) {
     var client = getClient();
     client.put("/connections", params, callback);
+  },
+
+  parseString: function(input) {
+    return Parser.parseString(input);
   }
 };
