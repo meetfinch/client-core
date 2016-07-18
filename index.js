@@ -489,15 +489,15 @@ module.exports = {
     // support for simple input of a plain URL
     if (options.url) {
       debug("Attempting to parse '%s'", options.url);
-      options.forwards = [
-        module.exports.parseString(options.url)
-      ];
+      options.forward = module.exports.parseString(options.url);
     } else if (options.site) {
       debug("Assuming site title '%s'", options.title);
-      options.forwards = [{
+      options.forward = {
         title: options.site
-      }];
-    } else if (options.forward) {
+      };
+    }
+
+    if (options.forward) {
       debug("Mapping single forward to array of forwards");
       options.forwards = [options.forward];
     }
